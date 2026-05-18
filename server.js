@@ -34,25 +34,36 @@ app.get('/callback', async (req, res) => {
 
     const token = tokenResponse.data.access_token;
     
+    // Format correct pour Decap CMS
     res.send(`
+      <!DOCTYPE html>
       <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Authenticating...</title>
+        </head>
         <body>
           <script>
-            window.opener.postMessage(
-              'authorization:github:success:${JSON.stringify({ token, provider: 'github' })}',
-              '${CMS_URL}'
-            );
-            window.close();
+            (function() {
+              function receiveMessage(e) {
+                console.log("Received message:", e);
+                window.opener.postMessage(
+                  "authorization:github:success:" + JSON.stringify({
+                    token: "${token}",
+                    provider: "github"
+                  }),
+                  e.origin
+                );
+              }
+              window.addEventListener("message", receiveMessage, false);
+              window.opener.postMessage("authorizing:github", "*");
+            })();
           </script>
         </body>
       </html>
     `);
   } catch (error) {
     console.error('Auth error:', error);
-    res.status(500).send('Authentication failed');
+    res.status(500).send('Authentication failed: ' + error.message);
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`OAuth server listening on port ${PORT}`);
 });
